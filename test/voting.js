@@ -35,8 +35,17 @@ describe("VotingContract", function () {
         await votingContract.connect(owner).addVoting(VOTING_PERIOD, candidates)
         const counterAfter = await votingContract.counter()
         expect(counterAfter - counterBefore).to.equal(1)
-        const isSecondCandidate = await votingContract.checkCandidate(counterBefore, accounts[1].address)
-        expect(isSecondCandidate).to.equal(true)
+        const isCandidateFromVoting = await votingContract.checkCandidate(counterBefore, accounts[1].address)
+        expect(isCandidateFromVoting).to.equal(true)
+    });
+
+    it("owner created another voting", async function () {
+        const counterBefore = await votingContract.counter()
+        const candidates = new Array()
+        for (i = 1; i < MAX_CANDIDATE_NUM; i++) candidates.push(accounts[i].address)
+        await votingContract.connect(owner).addVoting(VOTING_PERIOD, candidates)
+        const isCandidateFromNotVoting = await votingContract.checkCandidate(counterBefore, accounts[MAX_CANDIDATE_NUM + 1].address)
+        expect(isCandidateFromNotVoting).to.equal(false)
     });
 
 
