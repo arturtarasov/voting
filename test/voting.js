@@ -5,6 +5,7 @@ describe("VotingContract", function () {
     const MAX_CANDIDATE_NUM = 10;
     const COMISSION = 5;
     const VOTING_PERIOD = 180;
+    const provider = ethers.provider;
     let owner, buyer, votingContract, accounts;
     beforeEach(async function () {
         accounts = await ethers.getSigners()
@@ -150,6 +151,31 @@ describe("VotingContract", function () {
     });
 
     it("candidate 5 try to withdrow", async function () {
+        const candidates = new Array()
+        for (i = 1; i < MAX_CANDIDATE_NUM; i++) candidates.push(accounts[i].address)
+        const contract = await votingContract.connect(owner)
+        await contract.addVoting(VOTING_PERIOD, candidates)
+        await contract.startVoting(0)
+
+        await expect(
+            votingContract.connect(accounts[5]).WithdrowMyPrize(0)
+        ).to.be.revertedWith("Voting is not over yet!")
+    });
+    it("candidate 4 try to withdrow after time", async function () {
+        const candidates = new Array()
+        for (i = 1; i < MAX_CANDIDATE_NUM; i++) candidates.push(accounts[i].address)
+        const contract = await votingContract.connect(owner)
+        await contract.addVoting(VOTING_PERIOD, candidates)
+        await contract.startVoting(0)
+
+        await network.provider.send("evm_increaseTime", [200])
+        await network.provider.send("evm_mine")
+        await expect(
+            votingContract.connect(accounts[4]).WithdrowMyPrize(0)
+        ).to.be.revertedWith("You are not a winner!")
+    });
+
+    it("nobody can't vote after finish", async function () {
         const amount = new ethers.BigNumber.from(10).pow(18).mul(1)
         const candidates = new Array()
         for (i = 1; i < MAX_CANDIDATE_NUM; i++) candidates.push(accounts[i].address)
@@ -157,14 +183,14 @@ describe("VotingContract", function () {
         await contract.addVoting(VOTING_PERIOD, candidates)
         await contract.startVoting(0)
 
-        await votingContract.connect(accounts[2]).takePartInVoting(0, accounts[5].address, { value: amount })
-        await votingContract.connect(accounts[4]).takePartInVoting(0, accounts[5].address, { value: amount })
-
+        await network.provider.send("evm_increaseTime", [200])
+        await network.provider.send("evm_mine")
         await expect(
-            votingContract.connect(accounts[5]).WithdrowMyPrize(0)
-        ).to.be.revertedWith("Voting is not over yet!")
+            votingContract.connect(accounts[1]).takePartInVoting(0, accounts[3].address, { value: amount })
+        ).to.be.revertedWith("Voting is ended")
     });
-    it("candidate 4 try to withdrow after time", async function () {
+
+    it("candidate 5 got withdrow", async function () {
         const amount = new ethers.BigNumber.from(10).pow(18).mul(1)
         const candidates = new Array()
         for (i = 1; i < MAX_CANDIDATE_NUM; i++) candidates.push(accounts[i].address)
@@ -177,10 +203,24 @@ describe("VotingContract", function () {
 
         await network.provider.send("evm_increaseTime", [200])
         await network.provider.send("evm_mine")
+
+        const balanceH2Before = await provider.getBalance(accounts[5].address)
+        await votingContract.connect(accounts[5]).WithdrowMyPrize(0)
+        const balanceH2After = await provider.getBalance(accounts[5].address)
+
+        const balanceDif = balanceH2After - balanceH2Before
+        
+        expect(balanceDif).greaterThan(0)
+
         await expect(
-            votingContract.connect(accounts[4]).WithdrowMyPrize(0)
-        ).to.be.revertedWith("You are not a winner!")
+            votingContract.connect(accounts[5]).WithdrowMyPrize(0)
+        ).to.be.revertedWith("You have already received your prize!")
     });
 
+    it("Owner can change MaxCandidatesNum for futher votings", async function () {
+        await votingContract.connect(owner).setMaxCandidatesNum(1500)
+        const maxnum = await votingContract.maxCandidatesNum()
+        expect(maxnum).to.equal(1500)
+    });
 
 });
