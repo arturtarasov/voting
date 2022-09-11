@@ -70,5 +70,45 @@ describe("VotingContract", function () {
         ).to.be.revertedWith("Error! You're not the smart contract owner!")
     });
 
+    it("owner changed voting period", async function () {
+        const newVotingPeriod = 190;
+        await votingContract.connect(owner).editVotingPeriod(0, newVotingPeriod);
+        const votingInfo = await votingContract.getVotingInfo(0);
+        expect(votingInfo[2]).to.equal(newVotingPeriod);
+    });
+    
+    it("nobody can't vote before start", async function () {
+        const amount = new ethers.BigNumber.from(10).pow(18).mul(1);
+        await expect(
+            votingContract.connect(accounts[1]).takePartInVoting(0, accounts[3].address, { value: amount })
+        ).to.be.revertedWith("Voting not started yet");
+    });
+
+    it("voting started", async function () {
+        await votingContract.connect(owner).startVoting(0);
+        const votingInfo = await votingContract.getVotingInfo(0);
+        expect(votingInfo[0]).to.equal(true);
+    });
+
+    it("candidate can not be deleted after voting start", async function () {
+        const candidate = accounts[3]
+        const contract = await votingContract.connect(owner);
+        await contract.addCandidate(0, candidate.address)
+        await contract.startVoting(0);
+        
+        await expect(
+            contract.deleteCandidate(0, candidate.address)
+        ).to.be.revertedWith("Voting has already begun!");
+    });
+
+    it("period can not be changed after voting start", async function () {
+        const newVotingPeriod = 190;
+        const contract = await votingContract.connect(owner);
+        await contract.startVoting(0);
+        await expect(
+            contract.editVotingPeriod(0, newVotingPeriod)
+        ).to.be.revertedWith("Voting has already begun!");
+    });
+
 
 });
