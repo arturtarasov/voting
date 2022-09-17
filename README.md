@@ -12,6 +12,16 @@ npx hardhat node
 npx hardhat run scripts/deploy.js
 ```
 
+
+testing
+npx hardhat test
+npx hardhat coverage
+
+deploy
 npx hardhat node
 npx hardhat run scripts/deploy.js --network localhost
+npx hardhat run scripts/deploy.js --network rinkeby
+
+test eth to wallet with rinkeby network
+https://faucets.chain.link/rinkeby
 
